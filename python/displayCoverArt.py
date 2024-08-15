@@ -5,12 +5,11 @@ from logging.handlers import RotatingFileHandler
 from getSongInfo import getSongInfo
 import requests
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import sys,os
 import configparser
 
-<<<<<<< HEAD
 def draw_clock_on_image(image):
     """Function to draw the current time (hours and minutes) at the bottom of an image."""
     draw = ImageDraw.Draw(image)
@@ -38,8 +37,6 @@ def draw_clock_on_image(image):
 
     return image
 
-=======
->>>>>>> 5e2c3161e45f244287aa6ec5e47a236f6445ac92
 if len(sys.argv) > 2:
     username = sys.argv[1]
     token_path = sys.argv[2]
@@ -77,7 +74,6 @@ if len(sys.argv) > 2:
     prevSong    = ""
     currentSong = ""
     
-    
 
     try:
       while True:
@@ -89,13 +85,13 @@ if len(sys.argv) > 2:
             response = requests.get(imageURL)
             image = Image.open(BytesIO(response.content))
             image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
-            matrix.SetImage(image.convert('RGB'))
             prevSong = currentSong
 
           time.sleep(1)
         except Exception as e:
           image = Image.open(default_image)
           image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
+          image = draw_clock_on_image(image)  # Overlay clock on album art
           matrix.SetImage(image.convert('RGB'))
           print(e)
           time.sleep(1)
