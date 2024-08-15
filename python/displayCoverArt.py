@@ -5,37 +5,10 @@ from logging.handlers import RotatingFileHandler
 from getSongInfo import getSongInfo
 import requests
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 import sys,os
 import configparser
-
-def draw_clock_on_image(image):
-    """Function to draw the current time (hours and minutes) at the bottom of an image."""
-    draw = ImageDraw.Draw(image)
-
-    # Load a font
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Update path if necessary
-    font_size = 18  # Adjust size as needed
-    try:
-        font = ImageFont.truetype(font_path, font_size)
-    except IOError:
-        font = ImageFont.load_default()
-
-    # Get the current time without seconds
-    current_time = time.strftime("%H:%M")
-
-    # Calculate width and height of the text to be drawn
-    text_width, text_height = draw.textsize(current_time, font=font)
-    
-    # Calculate X, Y position of the text
-    text_x = (image.width - text_width) // 2
-    text_y = image.height - text_height - 5  # Position at the bottom with some padding
-    
-    # Draw the text
-    draw.text((text_x, text_y), current_time, font=font, fill=(255, 255, 255))
-
-    return image
 
 if len(sys.argv) > 2:
     username = sys.argv[1]
@@ -84,7 +57,6 @@ if len(sys.argv) > 2:
             response = requests.get(imageURL)
             image = Image.open(BytesIO(response.content))
             image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
-            image = draw_clock_on_image(image)  # Overlay clock on album art
             matrix.SetImage(image.convert('RGB'))
             prevSong = currentSong
 
@@ -92,7 +64,6 @@ if len(sys.argv) > 2:
         except Exception as e:
           image = Image.open(default_image)
           image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
-          image = draw_clock_on_image(image)  # Overlay clock on album art
           matrix.SetImage(image.convert('RGB'))
           print(e)
           time.sleep(1)

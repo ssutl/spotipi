@@ -1,0 +1,121 @@
+import time
+import sys
+import logging
+from logging.handlers import RotatingFileHandler
+from getSongInfo import getSongInfo
+import requests
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+from rgbmatrix import RGBMatrix, RGBMatrixOptions
+import os
+import configparser
+
+def draw_clock_on_image(image):
+    """Function to draw the current time (hours and minutes) at the bottom of an image."""
+    draw = ImageDraw.Draw(image)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Update path if necessary
+    font_size = 18
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    current_time = time.strftime("%H:%M")
+    text_width, text_height = draw.textsize(current_time, font=font)
+    text_x = (image.width - text_width) // 2
+    text_y = image.height - text_height - 5
+    draw.text((text_x, text_y), current_time, font=font, fill=(255, 255, 255))
+    return image
+
+if len(sys.argv) > 2:
+    username = sys.argv[1]
+    token_path = sys.argv[2]
+
+    # Configuration file    
+    dir = os.path.dirname(__file__)
+    filename = os.path.join(dir, '../config/rgb_options.ini')
+
+    # Configure logger
+    logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', filename='spotipy.log', level=logging.INFO)
+    logger = logging.getLogger('spotipy_logger')
+    handler = RotatingFileHandler('spotipy.log', maxBytes=2000, backupCount=3)
+    logger.addHandler(handler)
+
+    # Configuration for the matrix
+    config = configparser.ConfigParser()
+    config.read(filename)
+
+    options = RGBMatrixOptions()
+    options.rows = int(config['DEFAULT']['rows'])
+    options.cols = int(config['DEFAULT']['columns'])
+    options.chain_length = int(config['DEFAULT']['chain_length'])
+    options.parallel = int(config['DEFAULT']['parallel'])
+    options.hardware_mapping = config['DEFAULT']['hardware_mapping']
+    options.gpio_slowdown = int(config['DEFAULT']['gpio_slowdown'])
+    options.brightness = int(config['DEFAULT']['brightness'])
+    options.limit_refresh_rate_hz = int(config['DEFAULT']['refresh_rate'])
+
+    default_gif = os.path.join(dir, '../images/default.gif')
+    gif = Image.open(default_gif)
+    matrix = RGBMatrix(options=options)
+
+    prevSong = ""
+    currentSong = ""
+
+    try:
+        while True:
+            try:
+                imageURL = getSongInfo(username, token_path)[1]
+                currentSong = imageURL
+
+                if prevSong != currentSong:
+                    try:
+                        response = requests.get(imageURL)
+                        response.raise_for_status()
+                        image = Image.open(BytesIO(response.content))
+                        image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
+                        image = draw_clock_on_image(image)
+                        matrix.SetImage(image.convert('RGB'))
+                        prevSong = currentSong
+                    except Exception as e:
+                        logger.error(f"Error displaying song image: {e}")
+
+                time.sleep(1)
+
+            except Exception as e:
+                logger.error(f"Main loop error: {e}")
+
+                try:
+                    num_frames = gif.n_frames
+                except Exception:
+                    sys.exit("Image is not a gif")
+
+                canvases = []
+                print("Preprocessing gif, this may take a moment depending on the size of the gif...")
+                for frame_index in range(num_frames):
+                    gif.seek(frame_index)
+                    frame = gif.copy()
+                    frame.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
+                    frame_with_clock = draw_clock_on_image(frame)
+                    canvas = matrix.CreateFrameCanvas()
+                    canvas.SetImage(frame_with_clock.convert("RGB"))
+                    canvases.append(canvas)
+                gif.close()
+
+                print("Completed Preprocessing, displaying gif")
+
+                try:
+                    print("Press CTRL-C to stop.")
+                    cur_frame = 0
+                    while True:
+                        matrix.SwapOnVSync(canvases[cur_frame], framerate_fraction=10)
+                        cur_frame = (cur_frame + 1) % num_frames
+                except KeyboardInterrupt:
+                    sys.exit(0)
+
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+else:
+    print("Usage: %s username" % (sys.argv[0],))
+    sys.exit()
