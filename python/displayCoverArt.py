@@ -23,7 +23,7 @@ def draw_clock_on_image(image):
         font = ImageFont.load_default()
 
     # Get the current time without seconds
-    current_time = time.strftime("%H:%M")
+    current_time = time.strftime("%H:%M", time.localtime())
 
     # Calculate width and height of the text to be drawn
     text_width, text_height = draw.textsize(current_time, font=font)
@@ -73,6 +73,8 @@ if len(sys.argv) > 2:
 
     prevSong    = ""
     currentSong = ""
+    
+    
 
     try:
       while True:
