@@ -37,6 +37,7 @@ def draw_clock_on_image(image):
 
     return image
 
+
 if len(sys.argv) > 2:
     username = sys.argv[1]
     token_path = sys.argv[2]
@@ -73,7 +74,6 @@ if len(sys.argv) > 2:
 
     prevSong    = ""
     currentSong = ""
-    
 
     try:
       while True:
@@ -85,13 +85,13 @@ if len(sys.argv) > 2:
             response = requests.get(imageURL)
             image = Image.open(BytesIO(response.content))
             image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
+            matrix.SetImage(image.convert('RGB'))
             prevSong = currentSong
 
           time.sleep(1)
         except Exception as e:
           image = Image.open(default_image)
           image.thumbnail((matrix.width, matrix.height), Image.Resampling.LANCZOS)
-          image = draw_clock_on_image(image)  # Overlay clock on album art
           matrix.SetImage(image.convert('RGB'))
           print(e)
           time.sleep(1)
